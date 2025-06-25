@@ -202,11 +202,23 @@ def get_existing_issue_urls(filepath):
         lines = f.readlines()
     return {line.strip().split("(")[-1].rstrip(")\n") for line in lines if line.startswith("[GitHub 이슈 보기]")}
 
+def get_existing_todo_urls(filepath):
+    if not Path(filepath).exists():
+        return set()
+    with open(filepath, encoding="utf-8") as f:
+        content = f.read()
+    return set(re.findall(r"\[View Issue\]\((https://github\.com/.+?)\)", content))
+
 def append_open_issues_to_todolist(issues, owner, repo, token, output_path="ToDolist.md"):
+    existing_urls = get_existing_todo_urls(output_path)
     new_entries = []
     for issue in issues:
         issue_number = issue.get("number")
         issue_url = issue.get("html_url")
+
+        if issue_url in existing_urls:
+            continue  # 중복 방지
+
         title = issue.get("title")
         body = issue.get("body", "")
         comments = get_issue_comments(owner, repo, issue_number, token)
@@ -324,10 +336,6 @@ def upload_full_issue_list(repo_name, all_text):
 # 메인 실행 함수
 def main():
     parser = argparse.ArgumentParser(description="GitHub Closed 이슈 분석 + Maker 게시 자동화")
-    #parser.add_argument("token", help="GitHub Personal Access Token")
-    #parser.add_argument("owner", help="GitHub 저장소 소유자")
-    #parser.add_argument("repo", help="GitHub 저장소 이름")
-    #parser.add_argument("--output", default="troubleshooting_guide.md", help="출력할 Markdown 파일명")
     parser.add_argument("--upload-only", action="store_true", help="기존 Markdown 파일 내용을 기반으로 Maker에만 업로드")
     parser.add_argument("--todo", action="store_true", help="Open 상태 이슈를 분석하여 ToDolist.md에 기록")
     args = parser.parse_args()
